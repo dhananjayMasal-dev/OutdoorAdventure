@@ -48,7 +48,7 @@ namespace OutdoorAdventure.Tests
             // Assert
             Assert.True(result.Success);
             Assert.Equal("Booking Confirmed!", result.Message);
-            _mockBookingRepo.Verify(r => r.AddBookingAsync(It.IsAny<Booking>()), Times.Once); // Verify save was called
+            _mockBookingRepo.Verify(r => r.AddBookingAsync(It.IsAny<Booking>()), Times.Once);
         }
 
         [Fact]
@@ -70,7 +70,6 @@ namespace OutdoorAdventure.Tests
             Assert.False(result.Success);
             Assert.Contains("Rejected", result.Message);
 
-            // Important: Even rejected bookings are saved in your logic, so we verify AddBooking is still called
             _mockBookingRepo.Verify(r => r.AddBookingAsync(It.Is<Booking>(b => b.IsConfirmed == false)), Times.Once);
         }
     }
