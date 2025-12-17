@@ -11,5 +11,7 @@ namespace Domain.Interfaces
     {
         Task AddBookingAsync(Booking booking);
         Task SaveChangesAsync();
+        Task<bool> HasBookingOnDateAsync(int userId, DateTime date);
+
     }
 }

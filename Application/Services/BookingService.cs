@@ -26,6 +26,16 @@ namespace Application.Services
                 return new BookingResponseDto { Success = false, Message = "User not found." };
             }
 
+            bool alreadyBooked = await _bookingRepository.HasBookingOnDateAsync(dto.UserId, dto.Date);
+            if (alreadyBooked)
+            {
+                return new BookingResponseDto
+                {
+                    Success = false,
+                    Message = "You already have a confirmed booking for this date."
+                };
+            }
+
             var weatherResult = await _weatherService.CheckWeatherAsync(dto.Location, dto.Date);
 
             var booking = new Booking
