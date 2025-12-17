@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Application.Services
@@ -21,6 +22,25 @@ namespace Application.Services
 
         public async Task<UserResponseDto> RegisterUserAsync(RegisterUserDto dto)
         {
+            if (!IsValidEmail(dto.Email))
+            {
+                return new UserResponseDto
+                {
+                    Success = false,
+                    Message = "Invalid email format."
+                };
+            }
+
+            var existingUser = await _userRepository.GetUserByEmailAsync(dto.Email);
+            if (existingUser != null)
+            {
+                return new UserResponseDto
+                {
+                    Success = false,
+                    Message = $"User with email '{dto.Email}' already exists."
+                };
+            }
+
             var user = new User
             {
                 Name = dto.Name,
@@ -32,10 +52,20 @@ namespace Application.Services
 
             return new UserResponseDto
             {
+                Success = true,
+                Message = "User registered successfully.",
                 Id = user.Id,
                 Name = user.Name,
                 Email = user.Email
             };
+        }
+
+        private bool IsValidEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+
+            var regex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
+            return regex.IsMatch(email);
         }
     }
 }
