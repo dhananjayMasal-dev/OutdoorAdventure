@@ -1,5 +1,6 @@
 ﻿using Domain.Interfaces;
 using Infrastructure.ExternalModels;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,12 @@ namespace Infrastructure.Service
     public class OpenWeatherService : IWeatherService
     {
         private readonly HttpClient _httpClient;
+        private readonly WeatherSettings _settings;
 
-        public OpenWeatherService(HttpClient httpClient)
+        public OpenWeatherService(HttpClient httpClient, IOptions<WeatherSettings> options)
         {
             _httpClient = httpClient;
+            _settings = options.Value;
         }
 
         public async Task<(bool IsGoodWeather, string Message)> CheckWeatherAsync(string location, DateTime date)
@@ -31,7 +34,7 @@ namespace Infrastructure.Service
 
                 return await GetWeatherForecastAsync(coordinates.Value.Lat, coordinates.Value.Lon, date);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return (false, "Error connecting to Weather Service.");
             }
@@ -39,7 +42,9 @@ namespace Infrastructure.Service
 
         private async Task<(double Lat, double Lon)?> GetCoordinatesAsync(string locationName)
         {
-            var url = $"https://geocoding-api.open-meteo.com/v1/search?name={locationName}&count=1&language=en&format=json";
+            var encodedLocation = Uri.EscapeDataString(locationName);
+
+            var url = $"{_settings.GeocodingBaseUrl}?name={encodedLocation}&count=1&language=en&format=json";
 
             var response = await _httpClient.GetFromJsonAsync<GeocodingResponse>(url);
 
@@ -56,7 +61,7 @@ namespace Infrastructure.Service
         {
             string dateString = date.ToString("yyyy-MM-dd");
 
-            var url = $"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max&start_date={dateString}&end_date={dateString}&timezone=auto";
+            var url = $"{_settings.ForecastBaseUrl}?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max&start_date={dateString}&end_date={dateString}&timezone=auto";
 
             var response = await _httpClient.GetFromJsonAsync<WeatherResponse>(url);
 

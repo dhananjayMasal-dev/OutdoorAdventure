@@ -21,6 +21,12 @@ namespace Api.Controllers
         public async Task<IActionResult> RegisterUser([FromBody] RegisterUserDto dto)
         {
             var result = await _userService.RegisterUserAsync(dto);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
             return Ok(result);
         }
 
