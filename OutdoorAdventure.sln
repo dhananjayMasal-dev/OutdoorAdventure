@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36804.6 d17.14
+VisualStudioVersion = 17.14.36804.6
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{0ACD32BD-ED19-4D78-A33E-F4FFC9F6D1F1}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Api", "Api\Api.csproj", "{7C95FB78-51EE-411C-B37F-CBA322EBCBD5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Application", "Application\Application.csproj", "{DF24F313-D06F-49CC-A5EF-FC406AE8ADDB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutdoorAdventure.Tests", "OutdoorAdventure.Tests\OutdoorAdventure.Tests.csproj", "{E93CBF3B-40D8-4C43-B500-4BB0DA292AA2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{DF24F313-D06F-49CC-A5EF-FC406AE8ADDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DF24F313-D06F-49CC-A5EF-FC406AE8ADDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DF24F313-D06F-49CC-A5EF-FC406AE8ADDB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E93CBF3B-40D8-4C43-B500-4BB0DA292AA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E93CBF3B-40D8-4C43-B500-4BB0DA292AA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E93CBF3B-40D8-4C43-B500-4BB0DA292AA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E93CBF3B-40D8-4C43-B500-4BB0DA292AA2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

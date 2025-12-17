@@ -1,5 +1,6 @@
 ﻿using Application.DTOs;
 using Application.Interfaces;
+using AutoMapper;
 using Domain.Entities;
 using Domain.Interfaces;
 using System;
@@ -9,27 +10,22 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
+
 namespace Application.Services
 {
     public class UserService : IUserService
     {
         private readonly IUserRepository _userRepository;
+        private readonly IMapper _mapper;
 
-        public UserService(IUserRepository userRepository)
+        public UserService(IUserRepository userRepository, IMapper mapper)
         {
             _userRepository = userRepository;
+            _mapper = mapper;
         }
 
         public async Task<UserResponseDto> RegisterUserAsync(RegisterUserDto dto)
         {
-            if (!IsValidEmail(dto.Email))
-            {
-                return new UserResponseDto
-                {
-                    Success = false,
-                    Message = "Invalid email format."
-                };
-            }
 
             var existingUser = await _userRepository.GetUserByEmailAsync(dto.Email);
             if (existingUser != null)
@@ -41,31 +37,17 @@ namespace Application.Services
                 };
             }
 
-            var user = new User
-            {
-                Name = dto.Name,
-                Email = dto.Email
-            };
+            var user = _mapper.Map<User>(dto);
 
             await _userRepository.AddUserAsync(user);
             await _userRepository.SaveChangesAsync();
 
-            return new UserResponseDto
-            {
-                Success = true,
-                Message = "User registered successfully.",
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email
-            };
-        }
+            var response = _mapper.Map<UserResponseDto>(user);
 
-        private bool IsValidEmail(string email)
-        {
-            if (string.IsNullOrWhiteSpace(email)) return false;
+            response.Success = true;
+            response.Message = "User registered successfully.";
 
-            var regex = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
-            return regex.IsMatch(email);
+            return response;
         }
     }
 }
