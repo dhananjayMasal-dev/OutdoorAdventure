@@ -1,4 +1,6 @@
-﻿using Application.DTOs;
+﻿using AutoMapper; // Needs AutoMapper package in Test Project
+using Application.DTOs;
+using Application.Mappings; // Namespace where MappingProfile is
 using Application.Services;
 using Domain.Entities;
 using Domain.Interfaces;
@@ -12,6 +14,7 @@ namespace OutdoorAdventure.Tests
         private readonly Mock<IBookingRepository> _mockBookingRepo;
         private readonly Mock<IUserRepository> _mockUserRepo;
         private readonly Mock<IWeatherService> _mockWeatherService;
+        private readonly IMapper _mapper;
         private readonly BookingService _service;
 
         public BookingServiceTests()
@@ -20,10 +23,17 @@ namespace OutdoorAdventure.Tests
             _mockUserRepo = new Mock<IUserRepository>();
             _mockWeatherService = new Mock<IWeatherService>();
 
+            var config = new MapperConfiguration(cfg =>
+            {
+                cfg.AddProfile<MappingProfile>();
+            });
+            _mapper = config.CreateMapper();
+
             _service = new BookingService(
                 _mockBookingRepo.Object,
                 _mockUserRepo.Object,
-                _mockWeatherService.Object
+                _mockWeatherService.Object,
+                _mapper
             );
         }
 
@@ -37,10 +47,10 @@ namespace OutdoorAdventure.Tests
                 .ReturnsAsync(new User { Id = 1, Name = "Test User" });
 
             _mockBookingRepo.Setup(repo => repo.HasBookingOnDateAsync(dto.UserId, dto.Date))
-                .ReturnsAsync(false); // No duplicate booking
+                .ReturnsAsync(false);
 
             _mockWeatherService.Setup(w => w.CheckWeatherAsync(dto.Location, dto.Date))
-                .ReturnsAsync((true, "Sunny")); // Good weather
+                .ReturnsAsync((true, "Sunny"));
 
             // Act
             var result = await _service.CreateBookingAsync(dto);
@@ -48,7 +58,13 @@ namespace OutdoorAdventure.Tests
             // Assert
             Assert.True(result.Success);
             Assert.Equal("Booking Confirmed!", result.Message);
-            _mockBookingRepo.Verify(r => r.AddBookingAsync(It.IsAny<Booking>()), Times.Once);
+
+            // Verify
+            _mockBookingRepo.Verify(r => r.AddBookingAsync(It.Is<Booking>(b =>
+                b.UserId == 1 &&
+                b.Location == "Goa" &&
+                b.IsConfirmed == true
+            )), Times.Once);
         }
 
         [Fact]
@@ -70,6 +86,7 @@ namespace OutdoorAdventure.Tests
             Assert.False(result.Success);
             Assert.Contains("Rejected", result.Message);
 
+            // Verify
             _mockBookingRepo.Verify(r => r.AddBookingAsync(It.Is<Booking>(b => b.IsConfirmed == false)), Times.Once);
         }
     }
