@@ -1,5 +1,6 @@
 ﻿using Domain.Interfaces;
 using Infrastructure.ExternalModels;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -14,15 +15,24 @@ namespace Infrastructure.Service
     {
         private readonly HttpClient _httpClient;
         private readonly WeatherSettings _settings;
+        private readonly IMemoryCache _cache;
 
-        public OpenWeatherService(HttpClient httpClient, IOptions<WeatherSettings> options)
+        public OpenWeatherService(HttpClient httpClient, IOptions<WeatherSettings> options, IMemoryCache cache)
         {
             _httpClient = httpClient;
             _settings = options.Value;
+            _cache = cache;
         }
 
         public async Task<(bool IsGoodWeather, string Message)> CheckWeatherAsync(string location, DateTime date)
         {
+            string cacheKey = $"Weather_{location.ToLower().Trim()}_{date:yyyy-MM-dd}";
+
+            if (_cache.TryGetValue(cacheKey, out (bool IsGood, string Msg) cachedResult))
+            {
+                return cachedResult;
+            }
+
             try
             {
                 var coordinates = await GetCoordinatesAsync(location);
@@ -32,7 +42,17 @@ namespace Infrastructure.Service
                     return (false, $"Location '{location}' could not be found.");
                 }
 
-                return await GetWeatherForecastAsync(coordinates.Value.Lat, coordinates.Value.Lon, date);
+                var result = await GetWeatherForecastAsync(coordinates.Value.Lat, coordinates.Value.Lon, date);
+
+                if (result.IsGoodWeather)
+                {
+                    var cacheOptions = new MemoryCacheEntryOptions()
+                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
+
+                    _cache.Set(cacheKey, result, cacheOptions);
+                }
+
+                return result;
             }
             catch (Exception)
             {
