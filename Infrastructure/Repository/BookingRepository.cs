@@ -1,6 +1,7 @@
 ﻿using Domain.Entities;
 using Domain.Interfaces;
 using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +27,15 @@ namespace Infrastructure.Repository
         public async Task SaveChangesAsync()
         {
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<bool> HasBookingOnDateAsync(int userId, DateTime date)
+        {
+            return await _context.Bookings.AnyAsync(b =>
+                b.UserId == userId &&
+                b.Date.Date == date.Date &&
+                b.IsConfirmed
+            );
         }
     }
 }
