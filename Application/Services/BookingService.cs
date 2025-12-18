@@ -1,4 +1,5 @@
-﻿using Application.DTOs;
+﻿using AutoMapper; // 1. Add this namespace
+using Application.DTOs;
 using Application.Interfaces;
 using Domain.Entities;
 using Domain.Interfaces;
@@ -10,12 +11,14 @@ namespace Application.Services
         private readonly IBookingRepository _bookingRepository;
         private readonly IUserRepository _userRepository;
         private readonly IWeatherService _weatherService;
+        private readonly IMapper _mapper;
 
-        public BookingService(IBookingRepository bookingRepository, IUserRepository userRepository, IWeatherService weatherService)
+        public BookingService(IBookingRepository bookingRepository, IUserRepository userRepository, IWeatherService weatherService, IMapper mapper)
         {
             _bookingRepository = bookingRepository;
             _userRepository = userRepository;
             _weatherService = weatherService;
+            _mapper = mapper;
         }
 
         public async Task<BookingResponseDto> CreateBookingAsync(CreateBookingDto dto)
@@ -38,24 +41,19 @@ namespace Application.Services
 
             var weatherResult = await _weatherService.CheckWeatherAsync(dto.Location, dto.Date);
 
-            var booking = new Booking
-            {
-                UserId = dto.UserId,
-                Date = dto.Date,
-                Location = dto.Location,
-                IsConfirmed = weatherResult.IsGoodWeather,
-                RejectionReason = weatherResult.IsGoodWeather ? null : weatherResult.Message
-            };
+            var booking = _mapper.Map<Booking>(dto);
+
+            booking.IsConfirmed = weatherResult.IsGoodWeather;
+            booking.RejectionReason = weatherResult.IsGoodWeather ? null : weatherResult.Message;
 
             await _bookingRepository.AddBookingAsync(booking);
             await _bookingRepository.SaveChangesAsync();
 
-            return new BookingResponseDto
-            {
-                BookingId = booking.Id,
-                Success = booking.IsConfirmed,
-                Message = booking.IsConfirmed ? "Booking Confirmed!" : $"Rejected: {booking.RejectionReason}"
-            };
+            var response = _mapper.Map<BookingResponseDto>(booking);
+
+            response.Message = booking.IsConfirmed ? "Booking Confirmed!" : $"Rejected: {booking.RejectionReason}";
+
+            return response;
         }
     }
 }

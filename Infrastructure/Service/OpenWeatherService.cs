@@ -2,12 +2,7 @@
 using Infrastructure.ExternalModels;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http.Json;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Infrastructure.Service
 {
@@ -35,20 +30,24 @@ namespace Infrastructure.Service
 
             try
             {
-                var coordinates = await GetCoordinatesAsync(location);
+                var locationResult = await GetCoordinatesWithRetryAsync(location);
 
-                if (coordinates == null)
+                if (locationResult.Lat == null && (locationResult.Suggestions == null || locationResult.Suggestions.Count == 0))
                 {
                     return (false, $"Location '{location}' could not be found.");
                 }
 
-                var result = await GetWeatherForecastAsync(coordinates.Value.Lat, coordinates.Value.Lon, date);
+                if (locationResult.Lat == null && locationResult.Suggestions != null && locationResult.Suggestions.Count > 0)
+                {
+                    var suggestions = string.Join(", ", locationResult.Suggestions.Take(3));
+                    return (false, $"Location '{location}' not found. Did you mean: {suggestions}?");
+                }
+
+                var result = await GetWeatherForecastAsync(locationResult.Lat!.Value, locationResult.Lon!.Value, date);
 
                 if (result.IsGoodWeather)
                 {
-                    var cacheOptions = new MemoryCacheEntryOptions()
-                        .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
-
+                    var cacheOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
                     _cache.Set(cacheKey, result, cacheOptions);
                 }
 
@@ -60,48 +59,82 @@ namespace Infrastructure.Service
             }
         }
 
-        private async Task<(double Lat, double Lon)?> GetCoordinatesAsync(string locationName)
+        private async Task<(double? Lat, double? Lon, List<string> Suggestions)> GetCoordinatesWithRetryAsync(string locationName)
         {
-            var encodedLocation = Uri.EscapeDataString(locationName);
+            var result = await FetchFromGeocodingApi(locationName);
+            if (result.HasCoordinates) return (result.Lat, result.Lon, null);
 
-            var url = $"{_settings.GeocodingBaseUrl}?name={encodedLocation}&count=1&language=en&format=json";
+            string tempLocation = locationName;
+
+            while (tempLocation.Contains(' '))
+            {
+                tempLocation = tempLocation.Substring(0, tempLocation.LastIndexOf(' '));
+
+                var retryResult = await FetchFromGeocodingApi(tempLocation);
+
+                if (retryResult.Suggestions.Count > 0)
+                {
+                    return (null, null, retryResult.Suggestions);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(tempLocation) && tempLocation != locationName)
+            {
+                var finalResult = await FetchFromGeocodingApi(tempLocation);
+
+                if (finalResult.Suggestions.Count > 0)
+                {
+                    return (null, null, finalResult.Suggestions);
+                }
+            }
+
+            return (null, null, null);
+        }
+
+        private async Task<(double? Lat, double? Lon, bool HasCoordinates, List<string> Suggestions)> FetchFromGeocodingApi(string query)
+        {
+            var encodedLocation = Uri.EscapeDataString(query);
+            var url = $"{_settings.GeocodingBaseUrl}?name={encodedLocation}&count=5&language=en&format=json";
 
             var response = await _httpClient.GetFromJsonAsync<GeocodingResponse>(url);
 
             if (response != null && response.results != null && response.results.Count > 0)
             {
-                var bestMatch = response.results[0];
-                return (bestMatch.latitude, bestMatch.longitude);
+                var exactMatch = response.results
+                    .FirstOrDefault(r => r.name != null && r.name.Equals(query, StringComparison.OrdinalIgnoreCase));
+
+                if (exactMatch != null)
+                {
+                    var matchName = $"{exactMatch.name} ({exactMatch.country})";
+                    return (exactMatch.latitude, exactMatch.longitude, true, new List<string> { matchName });
+                }
+
+                var suggestions = response.results
+                    .Where(r => r.name != null)
+                    .Select(r => $"{r.name} ({r.country})")
+                    .Distinct()
+                    .ToList();
+
+                return (null, null, false, suggestions);
             }
 
-            return null;
+            return (null, null, false, new List<string>());
         }
 
         private async Task<(bool IsGoodWeather, string Message)> GetWeatherForecastAsync(double lat, double lon, DateTime date)
         {
             string dateString = date.ToString("yyyy-MM-dd");
-
             var url = $"{_settings.ForecastBaseUrl}?latitude={lat}&longitude={lon}&daily=weathercode,temperature_2m_max&start_date={dateString}&end_date={dateString}&timezone=auto";
 
             var response = await _httpClient.GetFromJsonAsync<WeatherResponse>(url);
 
-            if (response == null || response.daily == null)
-            {
-                return (false, "Unable to fetch weather data.");
-            }
+            if (response == null || response.daily == null) return (false, "Unable to fetch weather data.");
 
             int weatherCode = response.daily.weathercode[0];
             double maxTemp = response.daily.temperature_2m_max[0];
 
-            if (maxTemp < 5.0)
-            {
-                return (false, $"Too cold! Forecast is {maxTemp}°C.");
-            }
-
-            if (weatherCode >= 51)
-            {
-                return (false, "Forecast predicts rain or storm.");
-            }
+            if (maxTemp < 5.0) return (false, $"Too cold! Forecast is {maxTemp}°C.");
+            if (weatherCode >= 51) return (false, "Forecast predicts rain or storm.");
 
             return (true, "Weather looks great!");
         }

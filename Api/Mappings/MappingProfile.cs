@@ -15,7 +15,8 @@ namespace Application.Mappings
 
             //response
             CreateMap<User, UserResponseDto>();
-            CreateMap<Booking, BookingResponseDto>();
+            CreateMap<Booking, BookingResponseDto>()
+                .ForMember(dest => dest.Success, opt => opt.MapFrom(src => src.IsConfirmed));
         }
     }
 }
