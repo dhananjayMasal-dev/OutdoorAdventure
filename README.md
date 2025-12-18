@@ -126,7 +126,7 @@ SETUP & RUN
 -----------
 
 1. Clone Repository
-git clone https://github.com/yourusername/outdoor-adventure.git
+git clone https://github.com/dhananjayMasal-dev/OutdoorAdventure
 cd outdoor-adventure
 
 
