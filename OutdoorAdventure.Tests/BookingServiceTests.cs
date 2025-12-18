@@ -89,5 +89,27 @@ namespace OutdoorAdventure.Tests
             // Verify
             _mockBookingRepo.Verify(r => r.AddBookingAsync(It.Is<Booking>(b => b.IsConfirmed == false)), Times.Once);
         }
+
+        [Fact]
+        public async Task CreateBooking_ShouldFail_WhenBookingAlreadyExists()
+        {
+            // Arrange
+            var dto = new CreateBookingDto { UserId = 1, Date = DateTime.Now.AddDays(1), Location = "Goa" };
+
+            _mockUserRepo.Setup(repo => repo.GetUserByIdAsync(dto.UserId))
+                .ReturnsAsync(new User { Id = 1 });
+
+            _mockBookingRepo.Setup(repo => repo.HasBookingOnDateAsync(dto.UserId, dto.Date))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.CreateBookingAsync(dto);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("You already have a confirmed booking for this date.", result.Message);
+
+            _mockBookingRepo.Verify(r => r.AddBookingAsync(It.IsAny<Booking>()), Times.Never);
+        }
     }
 }
